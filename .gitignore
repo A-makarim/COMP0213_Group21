@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+
+# Virtual Environments
+venv/
+env/
+ENV/
+robsim/
+.venv
+
+# PyBullet/Simulation
+*.bullet
+
+# Data Files - ALLOW CSV (for sharing training data)
+# *.csv - COMMENTED OUT TO ALLOW CSV FILES
+
+# Model Files - ALLOW PKL (for sharing trained models)
+# *.pkl - COMMENTED OUT TO ALLOW MODEL FILES
+
+# Images/Plots - ALLOW PNG (for sharing visualizations)
+# *.png - COMMENTED OUT TO ALLOW IMAGES
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# URDF cache (if any)
+*.urdf.cache
+
+# Backup files
+*_backup.py
+*.bak
+
+# Documentation build
+docs/_build/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
