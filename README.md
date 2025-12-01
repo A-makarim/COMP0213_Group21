@@ -2,6 +2,11 @@
 
 This project simulates robotic grasps in PyBullet, collects data, trains a classifier (Random Forest), and evaluates grasp success. It’s organized for quick experiments and clear, object‑oriented structure.
 
+Everything is working. noise and random.uniform and config parameters can be refiend more
+Training datasets needs to be generateds, option(2)
+Then test the classifier, option(3)
+Get plots for courseworkreport, option(4) 
+
 #
 
 ## Setup (Windows)
