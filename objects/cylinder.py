@@ -10,7 +10,7 @@ class CylinderObject(BaseObject):
     Cylindrical object for grasping experiments.
     """
     
-    def __init__(self, radius=0.06, height=0.8, mass=0.1, color=None):
+    def __init__(self, radius=0.04, height=0.8, mass=0.1, color=None):
         """
         Initialize a cylinder object.
         

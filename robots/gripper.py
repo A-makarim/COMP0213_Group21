@@ -1,3 +1,4 @@
+import math
 import pybullet as p
 import time
 from abc import ABC, abstractmethod
@@ -111,7 +112,7 @@ class PR2Gripper(BaseGripper):
 
     def close_gripper(self):
         """Close the PR2 gripper."""
-        close_positions = [0.0, 0.0]
+        close_positions = [0.0, 0.0] # Close position
         for target_position, joint_index in zip(close_positions, self.active_joints):
             p.setJointMotorControl2(
                 bodyIndex=self.gripper,
@@ -134,7 +135,13 @@ class SDHGripper(BaseGripper):
         # Use absolute path to the SDH URDF file
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         sdh_path = os.path.join(current_dir, "models", "sdh.urdf")
+
+        
         super().__init__(position, orientation, sdh_path)
+        fix_rot = p.getQuaternionFromEuler([0, -math.pi/2, 0])
+        p.resetBasePositionAndOrientation(self.gripper, self.position, fix_rot)
+
+
         
         # Set initial finger positions to be spread outward (negative values open fingers)
         for joint_index in self.active_joints:
@@ -161,20 +168,39 @@ class SDHGripper(BaseGripper):
             )
         self.sim_step(steps=200, delay=0.005)
 
-    def close_gripper(self):
-        """Close the SDH gripper."""
+    def close_gripper(self, fraction=1.0, target_positions=None):
+        """Close the SDH gripper.
+
+        Parameters
+        - fraction: float in [0,1]. 0.0 leaves the gripper at the open pose; 1.0 fully closes.
+        - target_positions: explicit list of joint targets (overrides fraction if provided).
+        """
         # Close all active joints to grasp
-        for joint_index in self.active_joints:
+        # Allow a partial close by accepting an optional fraction argument
+        # fraction=0.0 -> open position (-0.5), fraction=1.0 -> fully closed (2.0)
+        close_positions_full = [2.0] * len(self.active_joints)
+        open_positions = [-0.5] * len(self.active_joints)
+
+        # Determine target positions per joint
+        if target_positions is None:
+            # Clamp fraction
+            if fraction is None:
+                fraction = 1.0
+            fraction = max(0.0, min(1.0, float(fraction)))
+            target_positions = [open_p + fraction * (close_p - open_p)
+                                for open_p, close_p in zip(open_positions, close_positions_full)]
+
+        for joint_index, target_position in zip(self.active_joints, target_positions):
             p.setJointMotorControl2(
                 bodyIndex=self.gripper,
                 jointIndex=joint_index,
                 controlMode=p.POSITION_CONTROL,
-                targetPosition=1.0,  # Close position
+                targetPosition=target_position,
                 force=500
             )
             # Increase friction for better grip
             p.changeDynamics(self.gripper, joint_index, lateralFriction=1.0)
-        
+
         self.sim_step(steps=200, delay=0.005)
 
 

@@ -68,18 +68,20 @@ GRIPPER_CONFIG = {
         "cylinder_radius": 0.22,
         "radius_variation": (-0.05, 0.05),
         "y_offset": (-0.05, 0.05),
-        "z_base_offset": -0.1,
+        "z_base_offset": +0,
         "z_variation": (-0.1, 0.1),
         "roll_range": (-0.5, 0.5),
         "approach_distance": 0.0  # PR2 doesn't need approach phase
     },
     "sdh": {
-        "cuboid_radius": 0.05,        # Closer approach for SDH (3-finger gripper)
+        "open_pos": -0.5,
+        "close_pos": 0.0,   
+        "cuboid_radius": 0.1,        # Closer approach for SDH (3-finger gripper)
         "cylinder_radius": 0.18,      # Closer approach for cylinder
         "radius_variation": (-0.02, 0.02),  # Smaller variation for tighter control
         "y_offset": (-0.03, 0.03),    # Smaller Y offset
-        "z_base_offset": -0.2,
-        "z_variation": (-0.08, 0.08), # Slightly smaller Z variation
+        "z_base_offset": + 0,
+        "z_variation": (-0.2, 0.2), # Slightly smaller Z variation
         "roll_range": (-0.4, 0.4),     # Slightly smaller roll range
         "approach_distance": 0.10  # SDH needs to approach from 15cm away to avoid collisions
     }
@@ -167,59 +169,83 @@ class CustomObject:
 
 
 def generate_random_pose(object_position, height, step, total_steps, object_type, gripper_type="pr2"):
-    """
-    Generate a random gripper pose for the specified object type and gripper.
-    Uses gripper-specific configuration from GRIPPER_CONFIG dictionary.
-    """
-    # Get gripper-specific configuration
-    config = GRIPPER_CONFIG.get(gripper_type, GRIPPER_CONFIG["pr2"])
-    
+    config = GRIPPER_CONFIG.get(gripper_type)
     midplane_line = [
         object_position[0],
         object_position[1],
-        object_position[2] + height / 2
+        object_position[2]
     ]
+    height = midplane_line[2]
+
 
     # Select radius based on object type and gripper configuration
     if object_type == "cuboid":
         radius = config["cuboid_radius"]
-    else:  # cylinder
+    else: 
         radius = config["cylinder_radius"]
 
+
+
     # Apply radius variation
-    radius_variation = random.uniform(*config["radius_variation"])
+    radius_variation = random.uniform(*config["radius_variation"]) #unwrapping tupple
     radius += radius_variation
 
+    print(f"Height: {height} Radius: {radius}")
+
     # Calculate gripper position
+
+
     angle = (2 * math.pi) * (step / total_steps)
-    gripper_x = midplane_line[0] + radius * math.cos(angle)
+    
+    gripper_x = midplane_line[0] + radius * math.cos(angle) # random already applied in radius
     gripper_y = midplane_line[1] + radius * math.sin(angle) + random.uniform(*config["y_offset"])
-    gripper_z = midplane_line[2] + config["z_base_offset"] + random.uniform(*config["z_variation"])
+    gripper_z = midplane_line[2] + config["z_base_offset"]+ random.uniform(*config["z_variation"]) 
     position = [gripper_x, gripper_y, gripper_z]
+
 
     # Calculate direction vector pointing toward object center
     direction_vec = [
         midplane_line[0] - position[0],
         midplane_line[1] - position[1],
-        midplane_line[2] - position[2]
+        midplane_line[2] - position[2]     # should be zero for now
     ]
-    mag = math.sqrt(sum(i**2 for i in direction_vec))
+
+    mag = math.sqrt(sum(i**2 for i in direction_vec))   # magnitude, length
     if mag < 1e-8:
         direction_vec = [1.0, 0.0, 0.0]
         mag = 1.0
     else:
-        direction_vec = [i / mag for i in direction_vec]
+        direction_vec = [i / mag for i in direction_vec]   # unit vector
+
+    # print(f" object: {midplane_line}, gripper: {position} dir: {direction_vec} mag: {mag} ")
+    print(f" object: {[round(x, 2) for x in midplane_line]}, gripper: {[round(x, 2) for x in position]} dir: {[round(x, 2) for x in direction_vec]} mag: {mag:.2f} ")
 
     # Calculate orientation
     yaw = math.atan2(direction_vec[1], direction_vec[0])
-    pitch = math.asin(direction_vec[2])
+    pitch = -math.asin(direction_vec[2])
     roll = random.uniform(*config["roll_range"])
 
     orientation = p.getQuaternionFromEuler([roll, pitch, yaw])
+
+    if gripper_type == "sdh":
+
+        # STEP 1 — rotate SDH so it faces the object
+        face_object = p.getQuaternionFromEuler([0, math.pi/2, 0])
+        orientation = p.multiplyTransforms([0,0,0], orientation,
+                                        [0,0,0], face_object)[1]
+
+        # STEP 2 — local roll of +90° (roll about the direction fingers point)
+        roll_local = p.getQuaternionFromEuler([0, 0, math.pi/2])
+
+        # Apply local roll in the SDH frame → multiply on the RIGHT
+        orientation = p.multiplyTransforms([0,0,0], orientation,
+                                        [0,0,0], roll_local)[1]
+
+
     return position, orientation
 
 
-def generate_data_for_shape(object_type, num_grasps=50, gripper_type="pr2"):
+def generate_data_for_shape(object_type="cuboid", num_grasps=50, gripper_type="pr2"):
     """
     Generate new data for the given shape (cuboid/cylinder) with specified gripper.
     Writes to data/grasp_data_{gripper}_{shape}.csv, delegates CSV saving
@@ -234,32 +260,33 @@ def generate_data_for_shape(object_type, num_grasps=50, gripper_type="pr2"):
     p.loadURDF("plane.urdf")
 
     # Use ObjectFactory to create object (OOP design pattern)
-    graspable_object = ObjectFactory.create_object(object_type)
+    graspable_object = ObjectFactory.create_object(object_type) # CuboidObject() or CylinderObject()
     object_id = graspable_object.get_id()
     object_pos = graspable_object.get_grasp_center()
 
     p.changeDynamics(object_id, -1, mass=0.2, lateralFriction=1.2, spinningFriction=0.1)
     
     # Use GripperFactory to create gripper (OOP design pattern)
+    # this is spawning
     gripper = GripperFactory.create_gripper(
         gripper_type, 
-        [0, 0, graspable_object.get_height() + 0.2], 
+        [0, 0, graspable_object.get_height() + 1], 
         [0, 0, 0, 1]
     )
 
-    data_folder = os.path.join(SCRIPT_DIR, "data")
-    os.makedirs(data_folder, exist_ok=True)
-    csv_file = os.path.join(data_folder, f"grasp_data_{gripper_type}_{object_type}.csv")
-    evaluator = GripperEvaluator(csv_filename=csv_file)
+    data_folder = os.path.join(SCRIPT_DIR, "data") # Script_DIR is defined at the top
+    os.makedirs(data_folder, exist_ok=True) # ensure data folder exists
+    csv_file = os.path.join(data_folder, f"grasp_data_{gripper_type}_{object_type}.csv") # CSV file path for saving grasp data
+    evaluator = GripperEvaluator(csv_filename=csv_file) # delegate CSV saving to evaluator
     
     # Get gripper configuration
-    config = GRIPPER_CONFIG.get(gripper_type, GRIPPER_CONFIG["pr2"])
+    config = GRIPPER_CONFIG.get(gripper_type)
 
     for step in range(num_grasps):
         print(f"[INFO] Generating grasp {step+1}/{num_grasps} for {object_type}...")
         
         # Reset object position
-        p.resetBasePositionAndOrientation(object_id, object_pos, [0, 0, 0, 1])
+        p.resetBasePositionAndOrientation(object_id, object_pos, [0, 0, 0, 1]) # reset to initial pos
         safe_step_simulation(30)
         
         # Open gripper fingers
@@ -276,10 +303,15 @@ def generate_data_for_shape(object_type, num_grasps=50, gripper_type="pr2"):
             # Calculate direction vector from gripper to object center
             obj_center = graspable_object.get_grasp_center()
             approach_dir = [
-                obj_center[0] - position[0],
+                obj_center[0] - position[0],   # from pose est
                 obj_center[1] - position[1],
                 obj_center[2] - position[2]
             ]
+            # this is without the approach distance
+            
+
+
+
             mag = math.sqrt(sum(d**2 for d in approach_dir))
             if mag > 1e-8:
                 approach_dir = [d / mag for d in approach_dir]
@@ -294,14 +326,14 @@ def generate_data_for_shape(object_type, num_grasps=50, gripper_type="pr2"):
             ]
             
             # Move to approach start position
-            gripper.set_position(approach_start, orientation_quat)
+            gripper.set_position(approach_start, orientation_quat)  # intially here
             safe_step_simulation(20)
             
             # Gradual approach with finger closing
             num_approach_steps = 50
             for i in range(num_approach_steps):
                 # Interpolate position from approach_start to final position
-                t = (i + 1) / num_approach_steps
+                t = (i + 1) / num_approach_steps # t
                 current_pos = [
                     approach_start[0] + t * (position[0] - approach_start[0]),
                     approach_start[1] + t * (position[1] - approach_start[1]),
@@ -312,17 +344,23 @@ def generate_data_for_shape(object_type, num_grasps=50, gripper_type="pr2"):
                 # Start closing fingers halfway through approach
                 if i >= num_approach_steps // 2:
                     # Gradually close fingers
-                    close_progress = (i - num_approach_steps // 2) / (num_approach_steps // 2)
-                    for joint_index in gripper.active_joints:
-                        target_pos = -0.5 + close_progress * 1.5  # From -0.5 (open) to 1.0 (closed)
-                        p.setJointMotorControl2(
-                            bodyIndex=gripper.gripper,
-                            jointIndex=joint_index,
-                            controlMode=p.POSITION_CONTROL,
-                            targetPosition=target_pos,
-                            force=300
-                        )
-                
+                        close_progress = (i - num_approach_steps // 2) / (num_approach_steps // 2)
+
+                        open_pos  = config["open_pos"]
+                        close_pos = config["close_pos"]
+
+                        # interpolate from open → close based on close_progress
+                        target_pos = open_pos + close_progress * (close_pos - open_pos)
+
+                        for joint_index in gripper.active_joints:
+                            p.setJointMotorControl2(
+                                bodyIndex=gripper.gripper,
+                                jointIndex=joint_index,
+                                controlMode=p.POSITION_CONTROL,
+                                targetPosition=target_pos,
+                                force=300
+        )
+
                 p.stepSimulation()
                 time.sleep(0.01)
             
@@ -331,7 +369,11 @@ def generate_data_for_shape(object_type, num_grasps=50, gripper_type="pr2"):
             # PR2: Direct approach without gradual motion
             gripper.set_position(position, orientation_quat)
             safe_step_simulation(30)
-            gripper.close_gripper()
+            # For SDH we may want a partial close (leave a small gap).
+            if gripper_type == 'sdh':
+                gripper.close_gripper(fraction=0.6)  # adjust fraction as needed (0-1)
+            else:
+                gripper.close_gripper()
             safe_step_simulation(30)
 
         init_obj_pos, _ = p.getBasePositionAndOrientation(object_id)
@@ -361,6 +403,11 @@ def generate_data_for_shape(object_type, num_grasps=50, gripper_type="pr2"):
 
         gripper.open_gripper()
         safe_step_simulation(30)
+
+        spawn_z = graspable_object.get_height() + 1.0
+        gripper.set_position([0, 0, spawn_z], [0, 0, 0, 1])
+        safe_step_simulation(30)
+
 
     p.disconnect()
     print(f"[INFO] Generated {num_grasps} grasps for {gripper_type} gripper on '{object_type}' -> {csv_file}")
@@ -503,7 +550,10 @@ def test_classifier(object_type, num_tests=10, gripper_type="pr2"):
         else:
             gripper.set_position(position, orientation_quat)
             safe_step_simulation(30)
-            gripper.close_gripper()
+            if gripper_type == 'sdh':
+                gripper.close_gripper(fraction=0.6)
+            else:
+                gripper.close_gripper()
             safe_step_simulation(30)
         
         init_obj_pos, _ = p.getBasePositionAndOrientation(object_id)
@@ -524,9 +574,9 @@ def test_classifier(object_type, num_tests=10, gripper_type="pr2"):
         match = (predicted_success == actual_success)
         if match:
             correct_predictions += 1
-            print(f"  ✓ PREDICTION CORRECT!")
+            print(f"  [CORRECT] Prediction matched actual outcome")
         else:
-            print(f"  ✗ PREDICTION WRONG!")
+            print(f"  [INCORRECT] Prediction did not match actual outcome")
         
         # Store result
         results.append({

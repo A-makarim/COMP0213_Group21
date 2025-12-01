@@ -23,22 +23,20 @@ pip install -r requirements.txt
 main.py                 # Menu-driven workflow: generate → train → test → visualize
 train_model.py          # Model training helpers
 evaluate.py             # Evaluation and metrics
-simulation_utils.py     # Shared simulation utilities
-robots/                 # Gripper/task/robot simulation components
-	gripper.py
-	GripperTask.py
-	RobotSimulator.py
-	RobotSimulator.bat
-	simulation_utils.py
+visualize.py            # Visualization module
+robots/                 # Gripper implementations (PR2, SDH)
+  gripper.py
+  gripper_factory.py
+objects/                # Object implementations (Cuboid, Cylinder)
+  base_object.py
+  cuboid.py
+  cylinder.py
+  object_factory.py
 data/                   # CSV datasets (training/test and with predictions)
 models/                 # Trained models (.pkl) and URDFs
 images/                 # Generated plots
-plots/                  # Plot scripts (optional, advanced)
-parameters.yaml         # Tunable settings
 requirements.txt
-```
-
-## Run the Workflow
+```## Run the Workflow
 Launch the interactive menu and follow the on-screen prompts:
 ```powershell
 python main.py
@@ -47,7 +45,7 @@ You’ll:
 1) Generate training data (choose gripper and object) → CSV saved in `data/`
 2) Train the classifier → model file (.pkl) saved in `models/`
 3) Test the classifier → predictions appended to a new CSV in `data/`
-4) Visualize results → plots saved in `images/` (or use scripts in `plots/`)
+4) Visualize results → plots saved in `images/`
 
 ## Data Files
 - Training CSV examples: `data/grasp_data_cuboid.csv`, `data/grasp_data_cylinder.csv`
