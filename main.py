@@ -76,7 +76,7 @@ GRIPPER_CONFIG = {
     "sdh": {
         "open_pos": -0.5,
         "close_pos": 0.0,   
-        "cuboid_radius": 0.1,        # Closer approach for SDH (3-finger gripper)
+        "cuboid_radius": 0.16,        # Closer approach for SDH (3-finger gripper)
         "cylinder_radius": 0.16,      # Closer approach for cylinder
         "radius_variation": (-0.02, 0.02),  # Smaller variation for tighter control
         "y_offset": (-0.03, 0.03),    # Smaller Y offset
