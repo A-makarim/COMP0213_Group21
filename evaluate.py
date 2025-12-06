@@ -32,7 +32,7 @@ class GripperEvaluator:
                          2 if 0.05 <= delta_z <= 0.1
                          0 otherwise
         """
-        time.sleep(0.5)
+        # Removed sleep for faster performance
         if not p.isConnected():
             return 0, 0.0, initial_position
 

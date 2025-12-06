@@ -48,11 +48,11 @@ class BaseGripper(ABC):
         """
         return self.gripper
 
-    def sim_step(self, steps=500, delay=0.001):
-        """Simulate physics for the given number of steps."""
+    def sim_step(self, steps=500, delay=0.0):
+        """Simulate physics for the given number of steps with no delay."""
         for _ in range(steps):
             p.stepSimulation()
-            time.sleep(delay)
+            # No sleep for faster performance
 
     @abstractmethod
     def open_gripper(self):
@@ -74,18 +74,18 @@ class BaseGripper(ABC):
         """Set the position and orientation of the gripper."""
         p.resetBasePositionAndOrientation(self.gripper, position, orientation)
 
-    def move_up_smoothly(self, target_z, steps=200, delay=0.01):
+    def move_up_smoothly(self, target_z, steps=200, delay=0.0):
         """Move the gripper up smoothly by setting a small linear velocity."""
         current_position, current_orientation = p.getBasePositionAndOrientation(
             self.gripper)
         start_z = current_position[2]
         delta_z = (target_z - start_z) / steps if steps > 0 else 0.0
-        velocity = delta_z / delay if delay > 0 else 0.0
+        velocity = delta_z / (delay if delay > 0 else 0.01)  # avoid division by zero
 
         for _ in range(steps):
             p.resetBaseVelocity(self.gripper, linearVelocity=[0, 0, velocity])
             p.stepSimulation()
-            time.sleep(delay)
+            # No sleep for faster performance
 
         # Stop any velocity
         p.resetBaseVelocity(self.gripper, linearVelocity=[0, 0, 0])

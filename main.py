@@ -91,17 +91,16 @@ GRIPPER_CONFIG = {
 }
 
 
-def safe_step_simulation(num_steps=50, delay=0.01):
+def safe_step_simulation(num_steps=50, delay=0.0):
     """
-    Safely step the simulation for num_steps, each with delay seconds,
-    avoiding 'Not connected to physics server' errors if user closes PyBullet.
+    Step the simulation for num_steps with no artificial delay in DIRECT mode.
     """
     for _ in range(num_steps):
         if not p.isConnected():
             print("[INFO] PyBullet disconnected, stopping further steps.")
             return
         p.stepSimulation()
-        time.sleep(delay)
+        # No sleep in DIRECT mode
 
 
 class CustomObject:
@@ -250,16 +249,22 @@ def generate_random_pose(object_position, height, step, total_steps, object_type
 
 def generate_data_for_shape(object_type="cuboid", num_grasps=50, gripper_type="pr2"):
     """
-    Generate new data for the given shape (cuboid/cylinder) with specified gripper.
-    Writes to data/grasp_data_{gripper}_{shape}.csv, delegates CSV saving
-    and success logic to GripperEvaluator from evaluate.py.
+    Generate data quickly in DIRECT mode by eliminating sleeps and reducing unnecessary steps.
     """
-
     p.connect(p.DIRECT)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
-    p.resetSimulation()
-    p.setGravity(0, 0, -9.81)
 
+    # Ensure headless fast stepping
+    p.resetSimulation()
+    p.setRealTimeSimulation(0)
+    p.setTimeStep(1.0 / 240.0)
+    try:
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+        p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
+    except Exception:
+        pass
+
+    p.setGravity(0, 0, -9.81)
     p.loadURDF("plane.urdf")
 
     # Use ObjectFactory to create object (OOP design pattern)
@@ -285,16 +290,18 @@ def generate_data_for_shape(object_type="cuboid", num_grasps=50, gripper_type="p
     # Get gripper configuration
     config = GRIPPER_CONFIG.get(gripper_type)
 
+    buffered_rows = []
+
     for step in range(num_grasps):
         print(f"[INFO] Generating grasp {step+1}/{num_grasps} for {object_type}...")
         
         # Reset object position
         p.resetBasePositionAndOrientation(object_id, object_pos, [0, 0, 0, 1]) # reset to initial pos
-        safe_step_simulation(30)
+        safe_step_simulation(5)
         
         # Open gripper fingers
         gripper.open_gripper()
-        safe_step_simulation(30)
+        safe_step_simulation(5)
 
         # Generate target grasp pose
         position, orientation_quat = generate_random_pose(
@@ -330,10 +337,10 @@ def generate_data_for_shape(object_type="cuboid", num_grasps=50, gripper_type="p
             
             # Move to approach start position
             gripper.set_position(approach_start, orientation_quat)  # intially here
-            safe_step_simulation(20)
+            safe_step_simulation(5)
             
             # Gradual approach with finger closing
-            num_approach_steps = 50
+            num_approach_steps = 15  # reduced from 50
             for i in range(num_approach_steps):
                 # Interpolate position from approach_start to final position
                 t = (i + 1) / num_approach_steps # t
@@ -362,29 +369,28 @@ def generate_data_for_shape(object_type="cuboid", num_grasps=50, gripper_type="p
                                 controlMode=p.POSITION_CONTROL,
                                 targetPosition=target_pos,
                                 force=300
-        )
+                            )
 
                 p.stepSimulation()
-                time.sleep(0.01)
             
-            safe_step_simulation(30)
+            safe_step_simulation(5)
         else:
             # PR2: Direct approach without gradual motion
             gripper.set_position(position, orientation_quat)
-            safe_step_simulation(30)
+            safe_step_simulation(5)
             # For SDH we may want a partial close (leave a small gap).
             if gripper_type == 'sdh':
                 gripper.close_gripper(fraction=0.6)  # adjust fraction as needed (0-1)
             else:
                 gripper.close_gripper()
-            safe_step_simulation(30)
+            safe_step_simulation(5)
 
         init_obj_pos, _ = p.getBasePositionAndOrientation(object_id)
 
         # Lift the object
         lift_target_z = position[2] + 0.3
-        gripper.move_up_smoothly(target_z=lift_target_z, steps=100, delay=0.005)
-        safe_step_simulation(100)
+        gripper.move_up_smoothly(target_z=lift_target_z, steps=30, delay=0.0)  # reduced steps
+        safe_step_simulation(30)  # reduced
 
         success_code, delta_z, final_pos = evaluator.evaluate_grasp(object_id, init_obj_pos)
 
@@ -403,15 +409,24 @@ def generate_data_for_shape(object_type="cuboid", num_grasps=50, gripper_type="p
             success_code
         ]
         print([round(i, 2) for i in row])
-        evaluator.save_to_csv(row)
+        buffered_rows.append(row)
+
+        # Write every 50 grasps
+        if len(buffered_rows) >= 50:
+            for r in buffered_rows:
+                evaluator.save_to_csv(r)
+            buffered_rows.clear()
 
         gripper.open_gripper()
-        safe_step_simulation(30)
+        safe_step_simulation(5)
 
         spawn_z = graspable_object.get_height() + 1.0
         gripper.set_position([0, 0, spawn_z], [0, 0, 0, 1])
-        safe_step_simulation(30)
+        safe_step_simulation(5)
 
+    # Write remaining buffered rows
+    for r in buffered_rows:
+        evaluator.save_to_csv(r)
 
     p.disconnect()
     print(f"[INFO] Generated {num_grasps} grasps for {gripper_type} gripper on '{object_type}' -> {csv_file}")
