@@ -79,13 +79,13 @@ GRIPPER_CONFIG = {
     "sdh": {
         "open_pos": -0.5,
         "close_pos": 0.0,   
-        "cuboid_radius": 0.13,        # Closer approach for SDH (3-finger gripper)
-        "cylinder_radius": 0.13,      # Closer approach for cylinder
+        "cuboid_radius": 0.11,        # Closer approach for SDH (3-finger gripper)
+        "cylinder_radius": 0.12,      # Closer approach for cylinder
         "radius_variation": (-0.05, 0.05),  # Smaller variation for tighter control
         "y_offset": (-0.03, 0.03),    # Smaller Y offset
         "z_base_offset": + 0,
-        "z_variation": (-0.2, 0.2), # Slightly smaller Z variation
-        "roll_range": (-math.pi, math.pi),     # Slightly smaller roll range
+        "z_variation": (-0.1, 0.1), # Slightly smaller Z variation
+        "roll_range": (-math.pi/4, math.pi/4),     # Slightly smaller roll range
         "approach_distance": 0.1 # SDH needs to approach from 15cm away to avoid collisions
     }
 }
