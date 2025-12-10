@@ -340,7 +340,7 @@ Current system performance (9,770 training samples, 600 test samples):
 | PR2-Cylinder | 1,643           | 42.7%        | 83.3%         | 0.800    |
 | SDH-Cuboid   | 1,495           | 43.9%        | 86.0%         | 0.844    |
 | SDH-Cylinder | 4,512           | 41.5%        | 87.3%         | 0.835    |
-| **Average**  | **9,770**       | **44.4%**    | **84.8%**     | **0.823**|
+| **Average**  | **2,442**       | **44.4%**    | **84.8%**     | **0.823**|
 
 ## Troubleshooting
 
