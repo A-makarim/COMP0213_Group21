@@ -63,10 +63,11 @@
 % Title - compact
 \twocolumn[
 \begin{center}
-    {\LARGE\bfseries Grasp Planning Pipeline: OOP \& ML}\vspace{4pt}\\
-    {\large Abdul Azeem Makarim, Aftab Shiraz}\vspace{2pt}\\
+    {\LARGE\bfseries Gemini Powered Assessible Grasp Planning Pipeline: OOP}\vspace{4pt}\\
+    {\large Abdul Azeem Makarim 24178227, Aftab Shiraz 23089652}\vspace{2pt}\\
     {\normalsize COMP0213 – Object Oriented Programming for Robotics and AI}\vspace{2pt}\\
-    {\normalsize University College London, December 2025}\vspace{6pt}
+    {\normalsize University College London, December 2025}\vspace{2pt}\\
+    {\small \textbf{Repository:} \url{https://github.com/A-makarim/OOP-Coursework}}\vspace{6pt}
 \end{center}
 ]
 
@@ -90,6 +91,21 @@ Robotic grasping is fundamental for autonomous manipulation tasks (warehouse aut
     \item \textbf{Class Imbalance Handling:} Balanced weights, data augmentation for minority classes (41.5-49.5\% success rates)
     \item \textbf{Gemini 2.5 Flash Integration:} Voice input for accessibility. Instant interpretation from csv summaries/json
 \end{enumerate}
+
+\begin{lstlisting}
+(instructions given verbally for acessibility)
+User: "Which gripper performs best on cylinders?"
+
+Gemini: "Both grippers show strong performance on cylinders!
+PR2-Cylinder achieves 42.7% training success rate with 
+702/1643 successful grasps and 83.3% test accuracy. 
+SDH-Cylinder achieves 41.5% training success (1873/4512 
+grasps) with the highest test accuracy at 87.3%. The 
+SDH's 3-finger configuration provides stable force 
+closure on curved surfaces when properly tuned."
+
+\end{lstlisting}
+
 
 \begin{figure}[H]
 \centering
@@ -169,6 +185,33 @@ def open_gripper(self):
 
 
 \textbf{Debugging process:} Visualized gripper axes in GUI (p.addUserDebugLine). We noticed that the fingers were perpendicular to the approach vector. We tried Euler rotations (gimbal lock issues) then switched to quaternions. This fix took 8 hours debugging but was critical and it demonstrates the importance of coordinate frame validation in robotics.
+
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{figures/gripper_pr2_cuboid.png}
+    \caption{PR2-Cuboid}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{figures/gripper_pr2_cylinder.png}
+    \caption{PR2-Cylinder}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{figures/gripper_sdh_cuboid.png}
+    \caption{SDH-Cuboid}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{figures/gripper_sdh_cylinder.png}
+    \caption{SDH-Cylinder}
+\end{subfigure}
+\caption{URDF for objects are generated from classes. PR2 is provided by the library. SDH was provided in week 1 installation folder}
+\end{figure}
+
+
 
 \subsection{Factory Pattern}
 
@@ -316,7 +359,7 @@ GRIPPER_CONFIG = {
         "radius_variation": (-0.05, 0.05), # ±5cm (tighter)
         "y_offset": (-0.03, 0.03),       # ±3cm lateral
         "z_variation": (-0.05, 0.05),    # ±5cm vertical
-        "roll_range": (-math.pi/4, math.pi/4), # Limited roll
+        "roll_range": (-math.pi, math.pi), # full roll
         "approach_distance": 0.1,
         "close_start": 0.7               # Close at 70%
     }
@@ -329,7 +372,7 @@ GRIPPER_CONFIG = {
 
 Position noise applied to \textit{spherical sampling} in 3 dimensions:
 
-\textbf{Radial noise:} $r = r_{\text{base}} + \mathcal{U}(r_{\text{min}}, r_{\text{max}})$ where uniform distribution used (not Gaussian) to ensure coverage of full approach distance range. PR2 samples $r \in [0.18, 0.38]$ m for cuboids.
+\textbf{Radial noise:} $r = r_{\text{base}} + \mathcal{U}(r_{\text{min}}, r_{\text{max}})$ where uniform distribution used (not Gaussian) to ensure coverage of full approach distance range. PR2 samples $r \in [0.18, 0.38]$ m for cuboids. Note that this also accounts for noise in x axis and needs not to be repeated.
 
 \textbf{Lateral noise (Y-axis):} $y = y_{\text{center}} + \mathcal{U}(-\Delta y, +\Delta y)$ models gripper base motion perpendicular to approach direction. Critical for testing off-center grasps.
 
@@ -413,11 +456,23 @@ High ($\sigma_r=0.10$) & 79.1\% & 80.2\% & 0.78 & -1.1\% \\
 \caption{3D scatter plot of successful grasps across all configurations. Spherical distribution confirms uniform angular coverage. Z-axis spread shows vertical noise enables discovery of edge grasps.}
 \end{figure}
 
+Below are the plots for training data distribution. One unique pattern in SDH roll axis dual patches for successes. With more training data, the successes and failures would form a boundary like a sin plot. this is because optimal roll intervals for SDH occur at every 90 degrees.
+
 \begin{figure}[H]
 \centering
 \begin{subfigure}[b]{0.48\linewidth}
     \includegraphics[width=\linewidth]{figures/3d_visualization_pr2_cuboid.png}
     \caption{PR2-Cuboid: Wide success region}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{figures/3d_visualization_pr2_cylinder.png}
+    \caption{PR2-Cylinder: Wide success region}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{figures/3d_visualization_sdh_cuboid.png}
+    \caption{SDHCuboid: Tight success manifold}
 \end{subfigure}
 \hfill
 \begin{subfigure}[b]{0.48\linewidth}
@@ -427,35 +482,39 @@ High ($\sigma_r=0.10$) & 79.1\% & 80.2\% & 0.78 & -1.1\% \\
 \caption{3D spatial distribution showing position (top-left), XY projection (top-right), XZ projection (bottom-left), and orientation space (bottom-right). Green triangles = success, red circles = failure.}
 \end{figure}
 
+Oscillating patterns are clearly visible in roll distribution in both PR2 and SDH, almost tracing a sinusoidal  curve. Why are SDH plots skewed towards right side? The answer lies in the geometry of fingers of grippers. Because SDH has two fingers in parallel on one side, it can make it easier, or harder for it so grasp the object depending on other noise factors.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{figures/training_roll_distribution.png}
+    \caption{roll distribution}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{figures/training_pitch_distribution.png}
+    \caption{pitch distribution}
+\end{subfigure}
+\caption{Training data analysis showing success/failure distributions}
+\end{figure}
+
+
 \textbf{Observations from 3D Plots:}
 \begin{itemize}[nosep]
     \item \textbf{PR2-Cuboid:} Large spherical shell of successes—parallel-jaw tolerates wide approach angles
     \item \textbf{SDH-Cylinder:} Success points form tight curved manifold—3-finger gripper requires precise alignment
-    \item \textbf{Z-axis stratification:} Top grasps (z > 0.4) mostly fail—fingers collide with object top before closing
+    \item \textbf{Z-axis stratification:} Top grasps (z more than 0.4) mostly fail—fingers collide with object top before closing
     \item \textbf{Radial clustering:} Most successes at $r \in [0.25, 0.35]$ m—too close causes collision, too far misses object
 \end{itemize}
 
 \textbf{Tuning process:} Varied closing start from 30\%-80\%. SDH-Cylinder showed significant success improvement when delayed from 50\%$\rightarrow$70\%.
 
-\begin{figure}[H]
-\centering
-\begin{subfigure}[b]{0.48\linewidth}
-    \includegraphics[width=\linewidth]{figures/training_analysis_pr2_cuboid.png}
-    \caption{PR2-Cuboid training}
-\end{subfigure}
-\hfill
-\begin{subfigure}[b]{0.48\linewidth}
-    \includegraphics[width=\linewidth]{figures/training_analysis_sdh_cylinder.png}
-    \caption{SDH-Cylinder training}
-\end{subfigure}
-\caption{Training data analysis showing success/failure distributions}
-\end{figure}
 
 \section{Dataset Generation}
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\linewidth]{figures/dataset_sizes.png}
-\caption{Dataset distribution: 5,737 total samples across 4 configurations}
+\caption{Dataset distribution: more than 10,370 total samples across 4 configurations}
 \end{figure}
 \textbf{Why real-time simulations?} To generate bulk datasets matching GUI simulation fidelity, we ran real-time simulations on UCL GPU workstations (NVIDIA RTX 4060 SUPER TI in Lab121, Malet Place). SSH sessions via knuckles allowed overnight batch processing. This \textit{organic data} (main branch) captures realistic physics interaction at 240Hz.
 
@@ -519,7 +578,7 @@ def evaluate_grasp(self, object_id, gripper_id):
 
 \subsection{Data Collection Pipeline}
 
-\textbf{Automated batch generation:} To generate 9,770 training samples efficiently, we implemented automated batch processing:
+\textbf{Automated batch generation:} To generate 9,770 training samples efficiently, we implemented automated batch processing for TMUX sessions:
 
 \begin{lstlisting}[caption={Batch data generation workflow}]
 # Pseudocode for batch generation
@@ -529,28 +588,7 @@ for config in ["pr2_cuboid", "pr2_cylinder", "sdh_cuboid", "sdh_cylinder"]:
     
     collected = 0
     while collected < target_samples:
-        # Initialize fresh simulation
-        reset_simulation()
-        gripper = GripperFactory.create(gripper_type)
-        obj = ObjectFactory.create(object_type)
-        
-        # Generate random approach pose with noise
-        pos, ori = generate_random_pose(obj.position, gripper_type)
-        
-        # Execute grasp with progressive closing
-        success, delta_z = execute_and_evaluate(gripper, obj, pos, ori)
-        
-        # Save to CSV
-        data_row = {
-            'Position X': pos[0], 'Position Y': pos[1], 'Position Z': pos[2],
-            'Orientation Roll': ori[0], 'Orientation Pitch': ori[1], 
-            'Orientation Yaw': ori[2], 'Success': success, 'Delta Z': delta_z
-        }
-        append_to_csv(f"data/grasp_data_{config}.csv", data_row)
-        
-        collected += 1
-        if collected % 100 == 0:
-            print(f"{config}: {collected}/{target_samples} samples")
+    <code continues>
 \end{lstlisting}
 
 \textbf{Runtime Performance:} On UCL Lab121 workstation (Intel i9-12900K, RTX 4060 SUPER):
@@ -705,16 +743,18 @@ Scaling formula: $x_{\text{scaled}} = \frac{x - \mu}{\sigma}$ ensures position a
 \begin{table}[H]
 \centering
 \scriptsize
-\caption{Class weighting strategies (SDH-Cylinder, 41.5\% success rate)}
-\begin{tabular}{@{}lccccc@{}}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lcccccc}
 \toprule
-\textbf{Strategy} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Bias} \\
+\textbf{Strategy} & \textbf{Accuracy} & \textbf{Precision} &
+\textbf{Recall} & \textbf{F1} & \textbf{Bias} \\
 \midrule
 None (default) & 88.1\% & 0.92 & 0.61 & 0.73 & Majority \\
-\texttt{balanced} & 87.3\% & 0.87 & 0.80 & 0.83 & Balanced \\
+balanced & 87.3\% & 0.87 & 0.80 & 0.83 & Balanced \\
 Manual (1:1.5) & 86.7\% & 0.84 & 0.83 & 0.84 & Slight minority \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
 
 \textbf{Analysis:} Default weights favor majority class (high precision, low recall). Balanced weights improve recall (+19\%) with small precision cost (-5\%). Manual 1:1.5 ratio slightly better but requires tuning per dataset. We selected \texttt{balanced} for consistency across configurations.
@@ -955,7 +995,7 @@ model = RandomForestClassifier(class_weight='balanced')
 
 \subsection{Challenge 3: Sklearn CV Warning}
 
-\textbf{Problem:} "least populated class has only 3 members"
+\textbf{Problem:} "least populated class has only 3 members when introdusing a class for partial success"
 
 \textbf{Solution:} Binary classification:
 \begin{lstlisting}
@@ -987,7 +1027,7 @@ threshold = int(50*0.7) if sdh else 25  # Step 35 vs 25
 
 \textbf{7. Open/Closed Principle:} Open for extension, closed for modification
 
-\textbf{Adding New Gripper (BarrettHand):}
+\textbf{Adding New Gripper (e.g. BarrettHand):}
 \begin{lstlisting}
 class BarrettHandGripper(BaseGripper):
     def open_gripper(self): # Barrett-specific
@@ -1036,21 +1076,8 @@ def initialize_pybullet(gui=True):
     \item \textbf{Cone friction:} More realistic than pyramid approximation (default). Models anisotropic friction (different along/across surface). Small impact but improves cylinder grasps (rolling contact).
 \end{itemize}
 
-\textbf{Performance:} 240Hz simulation runs at 0.8× real-time on RTX 4060 (1.25s per 1s simulated). Acceptable for overnight batch generation (5,737 samples in ~8 hours).
+\textbf{Performance:} 240Hz simulation runs at 0.8× real-time on RTX 4060 (1.25s per 1s simulated). Acceptable for overnight batch generation.
 
-\subsection{File Structure}
-
-\begin{verbatim}
-OOPProject/
-├── main.py                    # Grasp execution
-├── train_model.py             # ML training
-├── evaluate.py                # Testing
-├── voice_assistant_gemini.py  # AI assistant
-├── robots/
-│   └── gripper.py             # Base, PR2, SDH
-├── models/                    # URDFs + trained models
-└── data/                      # CSV datasets
-\end{verbatim}
 
 \section{Gemini AI Voice Assistant}
 
@@ -1062,8 +1089,6 @@ OOPProject/
 \begin{itemize}[nosep]
     \item \textbf{Natural interaction:} Speak questions, hear answers
     \item \textbf{Intelligent responses:} Gemini AI provides context-aware analysis
-    \item \textbf{Data-driven:} Queries actual experimental results (9,770 samples)
-    \item \textbf{Robust:} Graceful degradation when components unavailable
     \item \textbf{Privacy:} Local data processing, API calls only for AI inference
 \end{itemize}
 
@@ -1079,7 +1104,7 @@ OOPProject/
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth]{figures/uml_gemini.jpeg}
+\includegraphics[width=\linewidth]{figures/emin.jpeg}
 \caption{UML diagram for voice assistant gemini in main branch in GitHub}
 \end{figure}
 
@@ -1202,7 +1227,7 @@ closure on curved surfaces when properly tuned."
 
 \textbf{Real-time speech recognition:} Uses Google Speech API via microphone. Calibrates for ambient noise, 10s timeout, handles transcription errors gracefully.
 
-\textbf{Text-to-speech:} Offline synthesis via \texttt{pyttsx3}. Splits long responses (>500 chars) into chunks to prevent TTS buffer overflow. Adjustable rate (150 wpm) and volume (90\%).
+\textbf{Text-to-speech:} Offline synthesis via \texttt{pyttsx3}. Splits long responses (500 chars or more) into chunks to prevent TTS buffer overflow. Adjustable rate (150 wpm) and volume (90\%).
 
 \textbf{Data integration:} Loads all 4 configuration CSVs (PR2/SDH × Cuboid/Cylinder) into pandas DataFrames. Calculates statistics on-demand: success rates, lift heights, prediction accuracy.
 
@@ -1280,91 +1305,6 @@ This project demonstrates a complete grasp planning pipeline integrating OOP des
     \item \textbf{Closing timing optimization:} SDH 70\% vs PR2 50\% closing threshold improved 3-finger grasp stability
 \end{enumerate}
 
-\subsection{Detailed Limitations Analysis}
-
-\textbf{1. Feature Representation Simplicity:}
-\begin{itemize}[nosep]
-    \item \textbf{Missing geometry:} Object dimensions fixed per config—model can't generalize to new objects
-    \item \textbf{Missing kinematics:} Joint configurations not considered—assumes inverse kinematics solved
-    \item \textbf{Missing forces:} Contact forces expensive to simulate—requires force/torque sensors
-    \item \textbf{Impact:} Limits deployment to objects similar to training set (cuboids, cylinders)
-\end{itemize}
-
-\textbf{2. Binary Success Criterion Coarseness:}
-\begin{itemize}[nosep]
-    \item \textbf{5cm threshold arbitrary:} Some applications need 10cm lift (warehouse), others 2cm (assembly)
-    \item \textbf{No quality gradient:} Grasp lifting 4.9cm marked failure, 5.1cm success (discontinuity)
-    \item \textbf{No stability measure:} Successful lift doesn't guarantee hold during manipulation
-    \item \textbf{Future:} Regression model predicting continuous lift height (0-50cm) would enable application-specific thresholding
-\end{itemize}
-
-\textbf{3. Simulation-Reality Gap:}
-\begin{itemize}[nosep]
-    \item \textbf{Idealized friction:} PyBullet uses simplified cone friction (μ=0.5)—real objects vary (plastic=0.2, rubber=0.9)
-    \item \textbf{Rigid body assumption:} No deformation—grasping soft objects (foam, fabric) requires different models
-    \item \textbf{No sensor noise:} Perfect pose measurements—real cameras add ±2cm depth error, ±5° orientation error
-    \item \textbf{Mitigation strategy:} Domain randomization (vary friction, mass, damping during training) could bridge gap
-\end{itemize}
-
-\textbf{4. Computational Scalability:}
-\begin{itemize}[nosep]
-    \item \textbf{9,770 samples took 8.7 hours:} Scaling to 100K samples (research standard) needs 89 hours
-    \item \textbf{Real-time constraint:} 3.2s per grasp evaluation—too slow for online learning
-    \item \textbf{Solution:} Parallel simulation (4 cores → 2.2 hours) or neural network surrogate (50× speedup)
-\end{itemize}
-
-\subsection{Future Research Directions}
-
-\textbf{Machine Learning Enhancements:}
-\begin{enumerate}[nosep]
-    \item \textbf{Deep Learning:} CNN on depth images ($224 \times 224$ pixels) learns visual features (edges, corners, texture)—expected +10-15\% accuracy
-    \item \textbf{Active Learning:} Select most informative samples near decision boundary—reduce dataset size by 50\% while maintaining accuracy
-    \item \textbf{Transfer Learning:} Pre-train on large simulation dataset, fine-tune on real robot—overcome sim-to-real gap
-    \item \textbf{Multi-Task Learning:} Jointly predict success + lift height + stability score—shared representations improve generalization
-    \item \textbf{Grasp Quality Regression:} Predict continuous quality metric $Q \in [0,1]$ instead of binary classification
-\end{enumerate}
-
-\textbf{OOP Architecture Extensions:}
-\begin{enumerate}[nosep]
-    \item \textbf{Observer Pattern:} Real-time monitoring dashboard subscribes to grasp events—visualize success rate, feature distributions live during data collection
-    \item \textbf{Strategy Pattern:} Pluggable sampling strategies (spherical, planar, antipodal)—select via config without code changes
-    \item \textbf{Composite Pattern:} Multi-gripper systems (2 robots collaborate)—represent as tree of grippers
-    \item \textbf{Decorator Pattern:} Add sensors (force/torque, tactile) as decorators around base gripper—transparent instrumentation
-    \item \textbf{Command Pattern:} Grasp actions as first-class objects—enable undo, macro recording, remote execution
-\end{enumerate}
-
-\textbf{Physics Simulation Improvements:}
-\begin{enumerate}[nosep]
-    \item \textbf{Force Control:} Replace position control with impedance control—safer for humans, better compliance on contact
-    \item \textbf{Slip Detection:} Monitor contact point velocities—re-grasp if object sliding (tactile sensors in real robot)
-    \item \textbf{Deformable Objects:} Soft body dynamics (FEM solver)—grasp foam, cloth, food items
-    \item \textbf{Dynamic Objects:} Moving targets (conveyor belt)—predict future pose, plan intercept trajectory
-    \item \textbf{Multi-Object Scenes:} Clutter, occlusions—push-to-grasp, object singulation strategies
-\end{enumerate}
-
-\textbf{Real Robot Deployment:}
-\begin{enumerate}[nosep]
-    \item \textbf{Sim-to-Real Transfer:} Domain randomization (vary mass, friction, lighting)—train robust policies
-    \item \textbf{Visual Servoing:} Close control loop with camera feedback—correct for pose estimation errors online
-    \item \textbf{Safety Constraints:} Joint limits, collision avoidance, force thresholds—prevent hardware damage
-    \item \textbf{Online Learning:} Update model from real grasp outcomes—continuous improvement via experience
-\end{enumerate}
-
-\subsection{Key Lessons for Robotics Engineers}
-
-\textbf{1. OOP Enables Scalability:} Adding SDH gripper required 1 new class (50 lines) + 1 factory entry (2 lines) + 1 config dict (7 lines) = 59 lines total. Zero changes to simulation loop, ML pipeline, or evaluation code. \textit{Design for extension, not modification.}
-
-\textbf{2. Balanced Metrics Essential:} SDH-Cylinder achieved 87.3\% accuracy but could have been 95\% by always predicting failure. F1=0.835 reveals true discriminative power. \textit{Always report precision, recall, F1 for classification.}
-
-\textbf{3. Noise is Feature, Not Bug:} Training without noise achieved 94\% train, 71\% test (overfitting). Training with noise: 87\% train, 83\% test (generalization). \textit{Inject realistic uncertainty during training.}
-
-\textbf{4. Physical Constraints Dominate:} Finger closing timing (50\% vs 70\%) had 10× larger impact than hyperparameter tuning. \textit{Understand physics before optimizing algorithms.}
-
-\textbf{5. Dataset Scale Matters:} SDH-Cylinder with 4,512 samples outperformed PR2-Cuboid with 2,120 samples (87.3\% vs 82.7\% accuracy). \textit{More data beats better algorithms.}
-
-\textbf{6. Reproducibility Through Configuration:} GRIPPER\_CONFIG dictionary enables exact experiment replication—change noise $\sigma_r$ from 0.05 to 0.08, re-run, compare results. \textit{Treat configuration as version-controlled code.}
-
-\textbf{Code Repository:} \url{https://github.com/A-makarim/Object-Oriented-Programming-Pybullet-Coursework-}
 
 \section*{References}
 \scriptsize
